@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { fetchIssues, createIssue, updateIssue, deleteIssue } from "@/lib/api";
+import { KANBAN_COLUMNS, PRIORITY_COLORS } from "@/lib/constants";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
@@ -24,18 +25,6 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-
-const COLUMNS = [
-  { id: "todo", title: "To Do", color: "bg-gray-100" },
-  { id: "in_progress", title: "In Progress", color: "bg-blue-100" },
-  { id: "done", title: "Done", color: "bg-green-100" },
-];
-
-const PRIORITY_COLORS = {
-  low: "bg-green-100 text-green-800",
-  medium: "bg-yellow-100 text-yellow-800",
-  high: "bg-red-100 text-red-800",
-};
 
 function DraggableIssue({
   issue,
@@ -244,7 +233,7 @@ export default function ProjectBoardPage() {
           onDragEnd={handleDragEnd}
         >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {COLUMNS.map((column) => (
+            {KANBAN_COLUMNS.map((column) => (
               <div key={column.id} className={`${column.color} rounded-lg p-4`}>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   {column.title} ({getIssuesByStatus(column.id).length})
