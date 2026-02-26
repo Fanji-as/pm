@@ -1,0 +1,24 @@
+/* Main Styles File - Imports all component and page styles */
+
+/* Component Styles */
+@import "./components/Button.css";
+@import "./components/Card.css";
+@import "./components/Input.css";
+
+/* Page Styles */
+@import "./pages/Dashboard.css";
+@import "./pages/Kanban.css";
+@import "./pages/Auth.css";
+
+/* Common Styles */
+.container {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+.nav {
+  @apply bg-white shadow-sm border-b border-gray-200;
+}
+
+.main {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
+}
