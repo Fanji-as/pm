@@ -187,7 +187,8 @@ export default function ProjectBoardPage() {
           ...(token && { Authorization: `Bearer ${token}` }),
         },
       });
-      const project = await response.json();
+      const data = await response.json();
+      const project = data.project || data;
       if (project) {
         if (project.members) {
           setProjectMembers(project.members);
