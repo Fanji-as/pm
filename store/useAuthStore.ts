@@ -2,8 +2,10 @@ import { create } from "zustand";
 
 interface User {
   id: string;
+  _id: string;
   name: string;
   email: string;
+  currentProjectId?: string;
 }
 
 interface AuthState {

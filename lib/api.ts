@@ -1,7 +1,9 @@
 export interface User {
   id: string;
+  _id: string;
   name: string;
   email: string;
+  currentProjectId?: string;
 }
 
 export interface Project {
@@ -26,8 +28,11 @@ export interface Issue {
 }
 
 export async function fetchUser(): Promise<User> {
+  const token = localStorage.getItem("token");
   const res = await fetch("/api/auth/me", {
-    credentials: "include",
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
   });
 
   if (!res.ok) {
@@ -47,7 +52,6 @@ export async function login(
     headers: {
       "Content-Type": "application/json",
     },
-    credentials: "include",
     body: JSON.stringify({ email, password }),
   });
 
@@ -69,7 +73,6 @@ export async function register(
     headers: {
       "Content-Type": "application/json",
     },
-    credentials: "include",
     body: JSON.stringify({ name, email, password }),
   });
 
@@ -82,15 +85,42 @@ export async function register(
 }
 
 export async function logout(): Promise<void> {
+  localStorage.removeItem("token");
   await fetch("/api/auth/logout", {
     method: "POST",
-    credentials: "include",
   });
 }
 
+export async function updateProfile(data: {
+  name?: string;
+  currentPassword?: string;
+  newPassword?: string;
+}): Promise<User> {
+  const token = localStorage.getItem("token");
+  const res = await fetch("/api/auth/update-profile", {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "Failed to update profile");
+  }
+
+  const responseData = await res.json();
+  return responseData.user;
+}
+
 export async function fetchProjects(): Promise<Project[]> {
+  const token = localStorage.getItem("token");
   const res = await fetch("/api/projects", {
-    credentials: "include",
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
   });
 
   if (!res.ok) {
@@ -102,12 +132,13 @@ export async function fetchProjects(): Promise<Project[]> {
 }
 
 export async function createProject(name: string): Promise<Project> {
+  const token = localStorage.getItem("token");
   const res = await fetch("/api/projects", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
     },
-    credentials: "include",
     body: JSON.stringify({ name }),
   });
 
@@ -121,9 +152,12 @@ export async function createProject(name: string): Promise<Project> {
 }
 
 export async function deleteProject(id: string): Promise<void> {
+  const token = localStorage.getItem("token");
   const res = await fetch(`/api/projects/${id}`, {
     method: "DELETE",
-    credentials: "include",
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
   });
 
   if (!res.ok) {
@@ -132,8 +166,11 @@ export async function deleteProject(id: string): Promise<void> {
 }
 
 export async function fetchIssues(projectId: string): Promise<Issue[]> {
+  const token = localStorage.getItem("token");
   const res = await fetch(`/api/issues?projectId=${projectId}`, {
-    credentials: "include",
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
   });
 
   if (!res.ok) {
@@ -151,12 +188,13 @@ export async function createIssue(data: {
   projectId: string;
   assigneeId?: string;
 }): Promise<Issue> {
+  const token = localStorage.getItem("token");
   const res = await fetch("/api/issues", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
     },
-    credentials: "include",
     body: JSON.stringify(data),
   });
 
@@ -173,12 +211,13 @@ export async function updateIssue(
   id: string,
   updates: Partial<Issue>,
 ): Promise<Issue> {
+  const token = localStorage.getItem("token");
   const res = await fetch(`/api/issues/${id}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
     },
-    credentials: "include",
     body: JSON.stringify(updates),
   });
 
@@ -191,9 +230,12 @@ export async function updateIssue(
 }
 
 export async function deleteIssue(id: string): Promise<void> {
+  const token = localStorage.getItem("token");
   const res = await fetch(`/api/issues/${id}`, {
     method: "DELETE",
-    credentials: "include",
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
   });
 
   if (!res.ok) {

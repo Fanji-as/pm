@@ -5,10 +5,8 @@ import { verifyToken } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {
-    const token = request.headers
-      .get("cookie")
-      ?.split("token=")[1]
-      ?.split(";")[0];
+    const authHeader = request.headers.get("authorization");
+    const token = authHeader?.replace("Bearer ", "");
 
     if (!token) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });

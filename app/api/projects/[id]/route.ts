@@ -8,10 +8,8 @@ export async function GET(
   { params }: { params: { id: string } },
 ) {
   try {
-    const token = request.headers
-      .get("cookie")
-      ?.split("token=")[1]
-      ?.split(";")[0];
+    const authHeader = request.headers.get("authorization");
+    const token = authHeader?.replace("Bearer ", "");
 
     if (!token) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
@@ -56,10 +54,8 @@ export async function DELETE(
   { params }: { params: { id: string } },
 ) {
   try {
-    const token = request.headers
-      .get("cookie")
-      ?.split("token=")[1]
-      ?.split(";")[0];
+    const authHeader = request.headers.get("authorization");
+    const token = authHeader?.replace("Bearer ", "");
 
     if (!token) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });

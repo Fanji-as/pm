@@ -6,10 +6,8 @@ import { verifyToken } from "@/lib/auth";
 // GET all issues for a project
 export async function GET(request: Request) {
   try {
-    const token = request.headers
-      .get("cookie")
-      ?.split("token=")[1]
-      ?.split(";")[0];
+    const authHeader = request.headers.get("authorization");
+    const token = authHeader?.replace("Bearer ", "");
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
 
@@ -49,10 +47,8 @@ export async function GET(request: Request) {
 // POST create a new issue
 export async function POST(request: Request) {
   try {
-    const token = request.headers
-      .get("cookie")
-      ?.split("token=")[1]
-      ?.split(";")[0];
+    const authHeader = request.headers.get("authorization");
+    const token = authHeader?.replace("Bearer ", "");
 
     if (!token) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
