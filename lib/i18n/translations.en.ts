@@ -97,10 +97,6 @@ export const en = {
     medium: "Medium",
     high: "High",
   },
-  // Board
-  board: {
-    title: "Board",
-  },
   // Theme
   theme: {
     light: "Light",

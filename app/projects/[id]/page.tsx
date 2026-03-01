@@ -309,7 +309,7 @@ export default function ProjectBoardPage() {
         if (result.success) {
           setSuccess(t.invitations.invitationSentSuccessfully);
           setInviteEmail("");
-          // For development, show invitation link
+
           if (result.invitationLink) {
             console.log("Invitation Link:", result.invitationLink);
             setSuccess(

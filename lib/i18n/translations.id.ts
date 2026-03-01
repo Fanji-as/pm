@@ -97,10 +97,6 @@ export const id = {
     medium: "Sedang",
     high: "Tinggi",
   },
-  // Board
-  board: {
-    title: "Papan",
-  },
   // Theme
   theme: {
     light: "Terang",
