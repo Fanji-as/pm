@@ -29,7 +29,6 @@ export default function Button({
     md: "btn-md",
     lg: "btn-lg",
   };
-
   return (
     <button
       className={cn(baseStyles, variants[variant], sizes[size], className)}

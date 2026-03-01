@@ -370,11 +370,6 @@ export default function ProjectBoardPage() {
                 <UserPlus size={16} className="mr-2" />
                 {t.invitations.inviteMember}
               </Button>
-              <Link href="/invitations">
-                <Button variant="ghost" size="sm">
-                  <UserPlus size={18} />
-                </Button>
-              </Link>
               <Button onClick={() => setIsModalOpen(true)}>
                 <Plus size={18} className="mr-2" />
                 {t.issues.newIssue}
