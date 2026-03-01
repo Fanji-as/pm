@@ -10,6 +10,7 @@ import { getPriorityStyles } from "@/lib/utils/priorityStyles";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
+import DeleteConfirm from "@/components/ui/DeleteConfirm";
 import {
   ArrowLeft,
   Plus,
@@ -123,6 +124,8 @@ export default function ProjectBoardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [issueToDelete, setIssueToDelete] = useState<any>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: "",
@@ -269,15 +272,27 @@ export default function ProjectBoardPage() {
     }
   };
 
-  const handleDeleteIssue = async (id: string) => {
-    if (!confirm(t.messages.areYouSureDeleteIssue)) return;
+  const openDeleteModal = (id: string) => {
+    const issue = issues.find((i) => i._id === id);
+    setIssueToDelete(issue);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteIssue = async () => {
+    if (!issueToDelete) return;
 
     try {
-      await deleteIssue(id);
+      await deleteIssue(issueToDelete._id);
+      setIsDeleteModalOpen(false);
+      setIssueToDelete(null);
       loadIssues();
     } catch (error) {
       console.error("Failed to delete issue:", error);
     }
+  };
+
+  const handleDeleteIssue = (id: string) => {
+    openDeleteModal(id);
   };
 
   const getIssuesByStatus = (status: string) => {
@@ -581,7 +596,11 @@ export default function ProjectBoardPage() {
 
       <Modal
         isOpen={isInviteModalOpen}
-        onClose={() => setIsInviteModalOpen(false)}
+        onClose={() => {
+          setIsInviteModalOpen(false);
+          setError("");
+          setSuccess("");
+        }}
         title={t.invitations.inviteMember}
       >
         <form
@@ -604,7 +623,11 @@ export default function ProjectBoardPage() {
             <Button
               variant="secondary"
               type="button"
-              onClick={() => setIsInviteModalOpen(false)}
+              onClick={() => {
+                setIsInviteModalOpen(false);
+                setError("");
+                setSuccess("");
+              }}
             >
               {t.invitations.cancel}
             </Button>
@@ -612,6 +635,19 @@ export default function ProjectBoardPage() {
           </div>
         </form>
       </Modal>
+
+      <DeleteConfirm
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setIssueToDelete(null);
+        }}
+        onConfirm={confirmDeleteIssue}
+        title={t.issues.deleteIssue}
+        message={t.messages.areYouSureDeleteIssue}
+        itemName={issueToDelete?.title}
+        itemDescription={issueToDelete?.description}
+      />
     </div>
   );
 }
