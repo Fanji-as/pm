@@ -3,7 +3,7 @@ import "@/styles/components/Button.css";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   readonly variant?: "primary" | "secondary" | "danger" | "ghost";
-  readonly size?: "sm" | "md" | "lg";
+  readonly size?: "xs" | "sm" | "md" | "lg";
   readonly children: React.ReactNode;
 }
 
@@ -24,6 +24,7 @@ export default function Button({
   };
 
   const sizes = {
+    xs: "btn-xs",
     sm: "btn-sm",
     md: "btn-md",
     lg: "btn-lg",
