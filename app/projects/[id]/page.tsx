@@ -134,6 +134,7 @@ export default function ProjectBoardPage() {
   const [success, setSuccess] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [projectMembers, setProjectMembers] = useState<any[]>([]);
+  const [projectName, setProjectName] = useState("");
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -187,8 +188,13 @@ export default function ProjectBoardPage() {
         },
       });
       const project = await response.json();
-      if (project && project.members) {
-        setProjectMembers(project.members);
+      if (project) {
+        if (project.members) {
+          setProjectMembers(project.members);
+        }
+        if (project.name) {
+          setProjectName(project.name);
+        }
       }
     } catch (error) {
       console.error("Failed to load project members:", error);
@@ -358,7 +364,7 @@ export default function ProjectBoardPage() {
                 className="text-xl font-bold"
                 style={{ color: "var(--color-text)" }}
               >
-                {t.board.title}
+                {projectName}
               </h1>
             </div>
             <div className="flex items-center space-x-2">
