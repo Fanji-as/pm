@@ -1,28 +1,59 @@
 /* Button Component Styles */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn:focus {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
 .btn-primary {
-  background-color: #0369a1;
+  background-color: var(--color-primary);
   color: white;
 }
 
 .btn-primary:hover {
-  background-color: #075985;
+  background-color: var(--color-primary-light);
 }
 
 .btn-primary:focus {
-  outline: 2px solid #0ea5e9;
+  outline-color: var(--color-primary);
 }
 
 .btn-secondary {
-  background-color: #e5e7eb;
-  color: #111827;
+  background-color: var(--color-border);
+  color: var(--color-text);
 }
 
 .btn-secondary:hover {
-  background-color: #d1d5db;
+  background-color: var(--color-text-secondary);
 }
 
 .btn-secondary:focus {
-  outline: 2px solid #6b7280;
+  outline-color: var(--color-text-secondary);
+}
+
+.dark .btn-secondary {
+  background-color: var(--color-text-secondary);
+  color: var(--color-text);
+}
+
+.dark .btn-secondary:hover {
+  background-color: var(--color-border);
 }
 
 .btn-danger {
@@ -35,20 +66,28 @@
 }
 
 .btn-danger:focus {
-  outline: 2px solid #dc2626;
+  outline-color: #dc2626;
 }
 
 .btn-ghost {
   background-color: transparent;
-  color: #374151;
+  color: var(--color-text);
 }
 
 .btn-ghost:hover {
-  background-color: #f3f4f6;
+  background-color: var(--color-background);
 }
 
 .btn-ghost:focus {
-  outline: 2px solid #6b7280;
+  outline-color: var(--color-text-secondary);
+}
+
+.dark .btn-ghost {
+  color: var(--color-text-secondary);
+}
+
+.dark .btn-ghost:hover {
+  background-color: var(--color-text-secondary);
 }
 
 .btn-sm {

@@ -1,0 +1,45 @@
+/* LanguageSwitcher Component Styles */
+.language-switcher {
+  position: relative;
+}
+
+.language-switcher select {
+  appearance: none;
+  padding-left: 2rem;
+  padding-right: 1rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-radius: 0.5rem;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.language-switcher select:hover {
+  background-color: var(--color-border);
+}
+
+.dark .language-switcher select {
+  background-color: var(--color-white);
+  color: var(--color-text);
+}
+
+.dark .language-switcher select:hover {
+  background-color: var(--color-border);
+}
+
+.language-switcher .icon {
+  position: absolute;
+  left: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-secondary);
+  pointer-events: none;
+}
+
+.dark .language-switcher .icon {
+  color: var(--color-text-secondary);
+}

@@ -1,11 +1,13 @@
 import { useEffect } from "react";
 import { X } from "lucide-react";
+import "@/styles/components/Modal.css";
 
 interface ModalProps {
   readonly isOpen: boolean;
   readonly onClose: () => void;
   readonly title: string;
   readonly children: React.ReactNode;
+  readonly closeAriaLabel?: string;
 }
 
 export default function Modal({
@@ -13,6 +15,7 @@ export default function Modal({
   onClose,
   title,
   children,
+  closeAriaLabel = "Close modal",
 }: ModalProps) {
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -33,26 +36,27 @@ export default function Modal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-screen items-center justify-center p-4">
+    <div className="modal-overlay">
+      <div className="modal-container">
         <button
-          className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+          className="modal-backdrop"
           onClick={onClose}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               onClose();
             }
           }}
-          aria-label="Close modal"
+          aria-label={closeAriaLabel}
         />
-        <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <div className="modal-content">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+            className="modal-close"
+            aria-label="Close"
           >
             <X size={20} />
           </button>
-          <h2 className="text-xl font-semibold mb-4">{title}</h2>
+          <h2 className="modal-title">{title}</h2>
           {children}
         </div>
       </div>

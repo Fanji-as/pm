@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import "@/styles/components/Card.css";
 
 interface CardProps {
   readonly children: React.ReactNode;
@@ -6,14 +7,5 @@ interface CardProps {
 }
 
 export default function Card({ children, className }: CardProps) {
-  return (
-    <div
-      className={cn(
-        "bg-white rounded-lg shadow-md border border-gray-200",
-        className,
-      )}
-    >
-      {children}
-    </div>
-  );
+  return <div className={cn("card", className)}>{children}</div>;
 }

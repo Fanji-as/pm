@@ -1,0 +1,31 @@
+/* ThemeToggle Component Styles */
+.theme-toggle {
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  background-color: var(--color-background);
+  transition: background-color 0.2s ease-in-out;
+}
+
+.theme-toggle:hover {
+  background-color: var(--color-border);
+}
+
+.dark .theme-toggle {
+  background-color: var(--color-white);
+}
+
+.dark .theme-toggle:hover {
+  background-color: var(--color-border);
+}
+
+.theme-toggle .icon {
+  color: var(--color-text);
+}
+
+.dark .theme-toggle .icon {
+  color: var(--color-text-secondary);
+}
+
+.theme-toggle .sun-icon {
+  color: var(--color-accent);
+}

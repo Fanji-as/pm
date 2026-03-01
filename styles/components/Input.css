@@ -1,25 +1,59 @@
 /* Input Component Styles */
-.input {
-  background-color: white;
-  border-radius: 0.5rem;
-  padding: 0.75rem 1rem;
-  border: 1px solid #e5e7eb;
-  outline: none;
-}
-
-.input:focus {
-  outline: 2px solid #0ea5e9;
-  border-color: #0284c7;
-}
-
-.input-error {
-  border-color: #dc2626;
+.input-container {
+  width: 100%;
 }
 
 .input-label {
   display: block;
   font-size: 0.875rem;
   font-weight: 500;
+  color: #374151;
   margin-bottom: 0.25rem;
+}
+
+.dark .input-label {
+  color: #d1d5db;
+}
+
+.input-field {
+  width: 100%;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background-color: white;
   color: #111827;
+}
+
+.dark .input-field {
+  border-color: #4b5563;
+  background-color: #374151;
+  color: white;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(132, 177, 121, 0.2);
+}
+
+.input-error {
+  border-color: #ef4444;
+}
+
+.input-error:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+.input-error-message {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  color: #dc2626;
+}
+
+.dark .input-error-message {
+  color: #f87171;
 }
