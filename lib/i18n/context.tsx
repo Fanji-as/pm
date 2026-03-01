@@ -8,12 +8,12 @@ import {
   useMemo,
   ReactNode,
 } from "react";
-import { translations, Language } from "./translations";
+import { translations, Language } from "./index";
 
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
-  t: typeof translations.en;
+  t: any;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(
@@ -39,7 +39,7 @@ export function LanguageProvider({
     }
   }, []);
 
-  const t = translations[language] as typeof translations.en;
+  const t = translations[language];
 
   const contextValue = useMemo(
     () => ({ language, setLanguage, t }),
