@@ -59,8 +59,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
-    const { title, description, priority, projectId, assigneeId } =
+    const { title, description, priority, projectId, team, assigneeId } =
       await request.json();
+
+    // team field from frontend is used as assigneeId
+    const effectiveAssigneeId = team || assigneeId || null;
 
     if (!title || !description || !projectId) {
       return NextResponse.json(
@@ -76,7 +79,7 @@ export async function POST(request: Request) {
       description,
       priority: priority || "medium",
       projectId,
-      assigneeId: assigneeId || null,
+      assigneeId: effectiveAssigneeId,
       createdBy: decoded.userId,
       status: "todo",
     });
