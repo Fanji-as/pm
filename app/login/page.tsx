@@ -56,7 +56,6 @@ export default function LoginPage() {
     const redirect = urlParams.get("redirect");
     if (redirect) {
       setRedirectPath(redirect);
-      console.log("Redirect path set to:", redirect);
     }
   }, []);
 
@@ -66,18 +65,10 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      console.log("Attempting login with:", email);
       const { user, token } = await login(email, password);
-      console.log("Login successful:", user);
       localStorage.setItem("token", token);
-      console.log("Token stored in localStorage");
       setUser(user);
-      console.log(
-        "User set in store, attempting to redirect to:",
-        redirectPath,
-      );
       router.push(redirectPath);
-      console.log("Redirect command executed");
     } catch (err: any) {
       console.error("Login error:", err);
       setError(err.message || t.auth.loginFailed);
