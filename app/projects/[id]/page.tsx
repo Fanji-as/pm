@@ -18,6 +18,7 @@ import {
   User,
   Settings,
   UserPlus,
+  Pencil,
 } from "lucide-react";
 import {
   DndContext,
@@ -27,7 +28,8 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  closestCenter,
+  closestCorners,
+  useDroppable,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -35,13 +37,47 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import "@/styles/pages/Kanban.css";
+
+function DroppableColumn({
+  id,
+  title,
+  count,
+  bgColor,
+  children,
+}: {
+  id: string;
+  title: string;
+  count: number;
+  bgColor: string;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`kanban-column ${isOver ? "drag-over" : ""}`}
+      style={{ backgroundColor: isOver ? undefined : bgColor }}
+    >
+      <h3 className="kanban-column-title">
+        {title} ({count})
+      </h3>
+      {children}
+    </div>
+  );
+}
 
 function DraggableIssue({
   issue,
   onDelete,
+  onEdit,
 }: {
   issue: any;
   onDelete: (id: string) => void;
+  onEdit: (id: string) => void;
 }) {
   const {
     attributes,
@@ -57,7 +93,6 @@ function DraggableIssue({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
   };
 
   const { bg: priorityBg, text: priorityText } = getPriorityStyles(issue.priority);
@@ -67,16 +102,12 @@ function DraggableIssue({
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      className="p-4 rounded-lg shadow-sm border cursor-move hover-shadow-md mb-3"
-      style={{
-        ...style,
-        backgroundColor: "var(--color-white)",
-        borderColor: "var(--color-border)",
-      }}
+      className={`kanban-card ${isDragging ? "dragging" : ""}`}
+      style={style}
     >
       <div className="flex justify-between items-start mb-2">
         <span
-          className="px-2 py-1 text-xs font-medium rounded-full"
+          className="priority-badge"
           style={{
             backgroundColor: priorityBg,
             color: priorityText,
@@ -84,32 +115,34 @@ function DraggableIssue({
         >
           {issue.priority}
         </span>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(issue._id);
-          }}
-          className="hover-text-red"
-          style={{ color: "var(--color-text-secondary)" }}
-        >
-          <Trash2 size={16} />
-        </button>
+        <div className="kanban-card-actions">
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(issue._id);
+            }}
+          >
+            <Pencil size={14} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(issue._id);
+            }}
+          >
+            <Trash2 size={14} />
+          </Button>
+        </div>
       </div>
-      <h4 className="font-medium mb-2" style={{ color: "var(--color-text)" }}>
-        {issue.title}
-      </h4>
-      <p
-        className="text-sm mb-3 line-clamp-2"
-        style={{ color: "var(--color-text-secondary)" }}
-      >
-        {issue.description}
-      </p>
+      <h4 className="kanban-card-title">{issue.title}</h4>
+      <p className="kanban-card-description">{issue.description}</p>
       {issue.assigneeId && (
-        <div
-          className="flex items-center text-xs"
-          style={{ color: "var(--color-text-secondary)" }}
-        >
-          <User size={14} className="mr-1" />
+        <div className="kanban-card-assignee">
+          <User size={14} />
           {issue.assigneeId.name}
         </div>
       )}
@@ -125,6 +158,8 @@ export default function ProjectBoardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [issueToEdit, setIssueToEdit] = useState<any>(null);
   const [issueToDelete, setIssueToDelete] = useState<any>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -132,6 +167,14 @@ export default function ProjectBoardPage() {
     description: "",
     priority: "medium",
     team: "",
+    status: "todo",
+  });
+  const [editFormData, setEditFormData] = useState({
+    title: "",
+    description: "",
+    priority: "medium",
+    team: "",
+    status: "todo",
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -264,7 +307,7 @@ export default function ProjectBoardPage() {
         ...formData,
         projectId: params.id as string,
       });
-      setFormData({ title: "", description: "", priority: "medium", team: "" });
+      setFormData({ title: "", description: "", priority: "medium", team: "", status: "todo" });
       setIsModalOpen(false);
       loadIssues();
     } catch (err: any) {
@@ -293,6 +336,41 @@ export default function ProjectBoardPage() {
 
   const handleDeleteIssue = (id: string) => {
     openDeleteModal(id);
+  };
+
+  const openEditModal = (id: string) => {
+    const issue = issues.find((i) => i._id === id);
+    if (issue) {
+      setIssueToEdit(issue);
+      setEditFormData({
+        title: issue.title,
+        description: issue.description || "",
+        priority: issue.priority || "medium",
+        team: issue.assigneeId?._id || "",
+        status: issue.status || "todo",
+      });
+      setIsEditModalOpen(true);
+    }
+  };
+
+  const handleEditIssue = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!issueToEdit) return;
+
+    try {
+      await updateIssue(issueToEdit._id, {
+        title: editFormData.title,
+        description: editFormData.description,
+        priority: editFormData.priority as "low" | "medium" | "high",
+        assigneeId: editFormData.team || undefined,
+        status: editFormData.status as "todo" | "in_progress" | "done",
+      });
+      setIsEditModalOpen(false);
+      setIssueToEdit(null);
+      loadIssues();
+    } catch (error) {
+      console.error("Failed to update issue:", error);
+    }
   };
 
   const getIssuesByStatus = (status: string) => {
@@ -349,41 +427,29 @@ export default function ProjectBoardPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="kanban-loading">
+        <div className="kanban-spinner"></div>
       </div>
     );
   }
 
   return (
-    <div
-      className="min-h-screen"
-      style={{ backgroundColor: "var(--color-background)" }}
-    >
-      <nav
-        style={{
-          backgroundColor: "var(--color-white)",
-          borderBottom: "1px solid var(--color-border)",
-          boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
-        }}
-      >
-        <div className="container">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center space-x-2">
+    <div className="kanban-page">
+      <nav className="kanban-nav">
+        <div className="kanban-nav-container">
+          <div className="kanban-nav-content">
+            <div className="kanban-nav-left">
               <Link href="/dashboard">
                 <Button variant="ghost" size="sm">
                   <ArrowLeft size={18} className="mr-2" />
                   {t.messages.back}
                 </Button>
               </Link>
-              <h1
-                className="text-xl font-bold"
-                style={{ color: "var(--color-text)" }}
-              >
+              <h1 className="text-xl font-bold kanban-nav-title">
                 {projectName}
               </h1>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="kanban-nav-right">
               <Button
                 variant="secondary"
                 size="sm"
@@ -406,14 +472,14 @@ export default function ProjectBoardPage() {
         </div>
       </nav>
 
-      <main className="main">
+      <main className="kanban-main">
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={closestCorners}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="kanban-grid">
             {KANBAN_COLUMNS.map((column) => {
               const getColumnTitle = () => {
                 switch (column.id) {
@@ -441,21 +507,14 @@ export default function ProjectBoardPage() {
               })();
 
               return (
-                <div
+                <DroppableColumn
                   key={column.id}
-                  className="rounded-lg p-4"
-                  style={{
-                    backgroundColor: columnBg,
-                  }}
+                  id={column.id}
+                  title={getColumnTitle()}
+                  count={getIssuesByStatus(column.id).length}
+                  bgColor={columnBg}
                 >
-                  <h3
-                    className="text-lg font-semibold mb-4"
-                    style={{ color: "var(--color-text)" }}
-                  >
-                    {getColumnTitle()} ({getIssuesByStatus(column.id).length})
-                  </h3>
                   <SortableContext
-                    id={column.id}
                     items={getIssuesByStatus(column.id).map((i) => i._id)}
                     strategy={verticalListSortingStrategy}
                   >
@@ -464,23 +523,18 @@ export default function ProjectBoardPage() {
                         key={issue._id}
                         issue={issue}
                         onDelete={handleDeleteIssue}
+                        onEdit={openEditModal}
                       />
                     ))}
                   </SortableContext>
-                </div>
+                </DroppableColumn>
               );
             })}
           </div>
 
           <DragOverlay>
             {activeId ? (
-              <div
-                className="p-4 rounded-lg shadow-lg border opacity-50"
-                style={{
-                  backgroundColor: "var(--color-white)",
-                  borderColor: "var(--color-border)",
-                }}
-              >
+              <div className="kanban-drag-overlay">
                 {issues.find((issue) => issue._id === activeId)?.title}
               </div>
             ) : null}
@@ -504,21 +558,13 @@ export default function ProjectBoardPage() {
               placeholder={t.messages.issueTitle}
               required
             />
-            <div>
-              <label
-                htmlFor="description"
-                className="block text-sm font-medium mb-1"
-                style={{ color: "var(--color-text)" }}
-              >
+            <div className="kanban-form-group">
+              <label htmlFor="description" className="kanban-form-label">
                 {t.issues.description}
               </label>
               <textarea
                 id="description"
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2"
-                style={{
-                  borderColor: "var(--color-border)",
-                  backgroundColor: "var(--color-white)",
-                }}
+                className="kanban-textarea"
                 rows={4}
                 value={formData.description}
                 onChange={(e) =>
@@ -528,22 +574,13 @@ export default function ProjectBoardPage() {
                 required
               />
             </div>
-            <div>
-              <label
-                htmlFor="team"
-                className="block text-sm font-medium mb-1"
-                style={{ color: "var(--color-text)" }}
-              >
+            <div className="kanban-form-group">
+              <label htmlFor="team" className="kanban-form-label">
                 {t.issues.team}
               </label>
               <select
                 id="team"
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2"
-                style={{
-                  borderColor: "var(--color-border)",
-                  backgroundColor: "var(--color-white)",
-                  color: "var(--color-text)",
-                }}
+                className="kanban-select"
                 value={formData.team}
                 onChange={(e) =>
                   setFormData({ ...formData, team: e.target.value })
@@ -557,22 +594,13 @@ export default function ProjectBoardPage() {
                 ))}
               </select>
             </div>
-            <div>
-              <label
-                htmlFor="priority"
-                className="block text-sm font-medium mb-1"
-                style={{ color: "var(--color-text)" }}
-              >
+            <div className="kanban-form-group">
+              <label htmlFor="priority" className="kanban-form-label">
                 {t.issues.priority}
               </label>
               <select
                 id="priority"
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2"
-                style={{
-                  borderColor: "var(--color-border)",
-                  backgroundColor: "var(--color-white)",
-                  color: "var(--color-text)",
-                }}
+                className="kanban-select"
                 value={formData.priority}
                 onChange={(e) =>
                   setFormData({ ...formData, priority: e.target.value })
@@ -584,8 +612,8 @@ export default function ProjectBoardPage() {
               </select>
             </div>
           </div>
-          {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-          <div className="mt-6 flex justify-end space-x-3">
+          {error && <p className="kanban-error">{error}</p>}
+          <div className="kanban-form-actions">
             <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
               {t.messages.cancel}
             </Button>
@@ -617,9 +645,9 @@ export default function ProjectBoardPage() {
             placeholder="user@example.com"
             required
           />
-          {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-          {success && <p className="mt-2 text-sm text-green-600">{success}</p>}
-          <div className="mt-6 flex justify-end space-x-3">
+          {error && <p className="kanban-error">{error}</p>}
+          {success && <p className="kanban-success">{success}</p>}
+          <div className="kanban-form-actions">
             <Button
               variant="secondary"
               type="button"
@@ -648,6 +676,111 @@ export default function ProjectBoardPage() {
         itemName={issueToDelete?.title}
         itemDescription={issueToDelete?.description}
       />
+
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setIssueToEdit(null);
+        }}
+        title={t.common.edit + " " + t.issues.title}
+      >
+        <form onSubmit={handleEditIssue}>
+          <div className="space-y-4">
+            <Input
+              label={t.issues.issueTitle}
+              value={editFormData.title}
+              onChange={(e) =>
+                setEditFormData({ ...editFormData, title: e.target.value })
+              }
+              placeholder={t.messages.issueTitle}
+              required
+            />
+            <div className="kanban-form-group">
+              <label htmlFor="edit-description" className="kanban-form-label">
+                {t.issues.description}
+              </label>
+              <textarea
+                id="edit-description"
+                className="kanban-textarea"
+                rows={4}
+                value={editFormData.description}
+                onChange={(e) =>
+                  setEditFormData({ ...editFormData, description: e.target.value })
+                }
+                placeholder={t.messages.describeIssue}
+                required
+              />
+            </div>
+            <div className="kanban-form-group">
+              <label htmlFor="edit-team" className="kanban-form-label">
+                {t.issues.team}
+              </label>
+              <select
+                id="edit-team"
+                className="kanban-select"
+                value={editFormData.team}
+                onChange={(e) =>
+                  setEditFormData({ ...editFormData, team: e.target.value })
+                }
+              >
+                <option value="">{t.issues.selectTeam}</option>
+                {projectMembers.map((member) => (
+                  <option key={member._id} value={member._id}>
+                    {member.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="kanban-form-group">
+              <label htmlFor="edit-priority" className="kanban-form-label">
+                {t.issues.priority}
+              </label>
+              <select
+                id="edit-priority"
+                className="kanban-select"
+                value={editFormData.priority}
+                onChange={(e) =>
+                  setEditFormData({ ...editFormData, priority: e.target.value })
+                }
+              >
+                <option value="low">{t.issues.low}</option>
+                <option value="medium">{t.issues.medium}</option>
+                <option value="high">{t.issues.high}</option>
+              </select>
+            </div>
+            <div className="kanban-form-group">
+              <label htmlFor="edit-status" className="kanban-form-label">
+                {t.issues.status}
+              </label>
+              <select
+                id="edit-status"
+                className="kanban-select"
+                value={editFormData.status}
+                onChange={(e) =>
+                  setEditFormData({ ...editFormData, status: e.target.value })
+                }
+              >
+                <option value="todo">{t.issues.todo}</option>
+                <option value="in_progress">{t.issues.inProgress}</option>
+                <option value="done">{t.issues.done}</option>
+              </select>
+            </div>
+          </div>
+          <div className="kanban-form-actions">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setIsEditModalOpen(false);
+                setIssueToEdit(null);
+              }}
+            >
+              {t.common.cancel}
+            </Button>
+            <Button type="submit">{t.common.save}</Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
