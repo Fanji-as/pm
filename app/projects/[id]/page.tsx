@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useLanguage } from "@/lib/i18n/context";
-import { fetchIssues, createIssue, updateIssue, deleteIssue } from "@/lib/api";
+import { fetchIssues, updateIssue, deleteIssue } from "@/lib/api";
 import { KANBAN_COLUMNS } from "@/lib/constants";
 import { getPriorityStyles } from "@/lib/utils/priorityStyles";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import DeleteConfirm from "@/components/ui/DeleteConfirm";
+import IssueModal from "@/components/ui/IssueModal";
 import {
   ArrowLeft,
   Plus,
@@ -18,8 +19,8 @@ import {
   User,
   Settings,
   UserPlus,
-  Pencil,
 } from "lucide-react";
+import "@/styles/components/IssueModal.css";
 import {
   DndContext,
   DragEndEvent,
@@ -38,6 +39,25 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import "@/styles/pages/Kanban.css";
+
+// Issue type definition
+interface IssueType {
+  _id: string;
+  title: string;
+  description: string;
+  priority: string;
+  status: string;
+  checklist?: { id: string; text: string; completed: boolean }[];
+  assigneeId?: {
+    _id: string;
+    name: string;
+  };
+  createdBy?: {
+    _id: string;
+    name: string;
+  };
+  createdAt?: string;
+}
 
 function DroppableColumn({
   id,
@@ -70,14 +90,17 @@ function DroppableColumn({
   );
 }
 
+// DraggableIssue component
 function DraggableIssue({
   issue,
   onDelete,
   onEdit,
+  cardRefs,
 }: {
-  issue: any;
+  issue: IssueType;
   onDelete: (id: string) => void;
-  onEdit: (id: string) => void;
+  onEdit: (issueData: IssueType) => void;
+  cardRefs: React.MutableRefObject<Map<string, HTMLDivElement>>;
 }) {
   const {
     attributes,
@@ -97,55 +120,91 @@ function DraggableIssue({
 
   const { bg: priorityBg, text: priorityText } = getPriorityStyles(issue.priority);
 
+  // Calculate checklist progress
+  const checklistCount = issue.checklist?.length ?? 0;
+  const completedCount = issue.checklist?.filter((item) => item.completed).length ?? 0;
+
+  const handleClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest(".kanban-card-actions")) {
+      return;
+    }
+    onEdit(issue);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onEdit(issue);
+    }
+  };
+
   return (
     <div
-      ref={setNodeRef}
+      ref={(node) => {
+        setNodeRef(node);
+        if (node) {
+          cardRefs.current.set(issue._id, node);
+        }
+      }}
       {...attributes}
       {...listeners}
       className={`kanban-card ${isDragging ? "dragging" : ""}`}
       style={style}
     >
-      <div className="flex justify-between items-start mb-2">
-        <span
-          className="priority-badge"
-          style={{
-            backgroundColor: priorityBg,
-            color: priorityText,
+      <button
+        type="button"
+        className="kanban-card-button"
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
+        aria-label={`Edit issue: ${issue.title}`}
+      >
+        <div className="flex justify-between items-start mb-2">
+          <span
+            className="priority-badge"
+            style={{
+              backgroundColor: priorityBg,
+              color: priorityText,
+            }}
+          >
+            {issue.priority}
+          </span>
+        </div>
+        <h4 className="kanban-card-title">{issue.title}</h4>
+        <p className="kanban-card-description">{issue.description}</p>
+        {checklistCount > 0 && (
+          <div className="kanban-card-checklist">
+            <span className="kanban-card-checklist-count">
+              {completedCount}/{checklistCount} tasks
+            </span>
+            <div className="kanban-card-progress">
+              <div
+                className="kanban-card-progress-fill"
+                style={{ width: `${Math.round((completedCount / checklistCount) * 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+        {issue.assigneeId && (
+          <div className="kanban-card-assignee">
+            <User size={14} />
+            {issue.assigneeId.name}
+          </div>
+        )}
+      </button>
+      <div className="kanban-card-actions">
+        <Button
+          variant="ghost"
+          size="xs"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(issue._id);
           }}
+          aria-label="Delete issue"
         >
-          {issue.priority}
-        </span>
-        <div className="kanban-card-actions">
-          <Button
-            variant="ghost"
-            size="xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(issue._id);
-            }}
-          >
-            <Pencil size={14} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(issue._id);
-            }}
-          >
-            <Trash2 size={14} />
-          </Button>
-        </div>
+          <Trash2 size={14} />
+        </Button>
       </div>
-      <h4 className="kanban-card-title">{issue.title}</h4>
-      <p className="kanban-card-description">{issue.description}</p>
-      {issue.assigneeId && (
-        <div className="kanban-card-assignee">
-          <User size={14} />
-          {issue.assigneeId.name}
-        </div>
-      )}
     </div>
   );
 }
@@ -153,34 +212,24 @@ function DraggableIssue({
 export default function ProjectBoardPage() {
   const { t } = useLanguage();
   const params = useParams();
-  const [issues, setIssues] = useState<any[]>([]);
+  const [issues, setIssues] = useState<IssueType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [issueToEdit, setIssueToEdit] = useState<any>(null);
-  const [issueToDelete, setIssueToDelete] = useState<any>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    priority: "medium",
-    team: "",
-    status: "todo",
-  });
-  const [editFormData, setEditFormData] = useState({
-    title: "",
-    description: "",
-    priority: "medium",
-    team: "",
-    status: "todo",
-  });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
-  const [projectMembers, setProjectMembers] = useState<any[]>([]);
+  const [projectMembers, setProjectMembers] = useState<{ _id: string; name: string }[]>([]);
   const [projectName, setProjectName] = useState("");
+
+  // Issue modal state
+  const [selectedIssue, setSelectedIssue] = useState<IssueType | null>(null);
+  const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
+  const [issueModalMode, setIssueModalMode] = useState<"create" | "view" | "edit">("edit");
+  const [issueToDelete, setIssueToDelete] = useState<IssueType | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -190,11 +239,41 @@ export default function ProjectBoardPage() {
     }),
   );
 
+  const openCreateModal = useCallback(() => {
+    setSelectedIssue(null);
+    setIssueModalMode("create");
+    setIsIssueModalOpen(true);
+  }, []);
+
+  const openEditModal = useCallback((issue: IssueType) => {
+    setSelectedIssue(issue);
+    setIssueModalMode("edit");
+    setIsIssueModalOpen(true);
+  }, []);
+
+  const closeIssueModal = useCallback(() => {
+    setIsIssueModalOpen(false);
+    setSelectedIssue(null);
+  }, []);
+
+  const handleDeleteIssue = useCallback((id: string) => {
+    const issue = issues.find((i) => i._id === id);
+    if (issue !== undefined) {
+      setIssueToDelete(issue);
+      setIsDeleteModalOpen(true);
+    }
+  }, [issues]);
+
   useEffect(() => {
     loadIssues();
     loadProjectMembers();
 
+    // Initialize dark mode state
     const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
+    const prefersDark = savedTheme === "dark" || 
+      (savedTheme === null && globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches);
+    setIsDarkMode(prefersDark);
+    
     if (savedTheme) {
       if (savedTheme === "dark") {
         document.documentElement.classList.add("dark");
@@ -205,6 +284,7 @@ export default function ProjectBoardPage() {
 
     const handleThemeChange = (event: CustomEvent) => {
       const newTheme = event.detail as "light" | "dark";
+      setIsDarkMode(newTheme === "dark");
       if (newTheme === "dark") {
         document.documentElement.classList.add("dark");
       } else {
@@ -243,8 +323,8 @@ export default function ProjectBoardPage() {
           setProjectName(project.name);
         }
       }
-    } catch (error) {
-      console.error("Failed to load project members:", error);
+    } catch (err) {
+      console.error("Failed to load project members:", err);
     }
   };
 
@@ -252,8 +332,8 @@ export default function ProjectBoardPage() {
     try {
       const data = await fetchIssues(params.id as string);
       setIssues(data);
-    } catch (error) {
-      console.error("Failed to load issues:", error);
+    } catch (err) {
+      console.error("Failed to load issues:", err);
     } finally {
       setIsLoading(false);
     }
@@ -267,7 +347,7 @@ export default function ProjectBoardPage() {
     const { active, over } = event;
     setActiveId(null);
 
-    if (!over) return;
+    if (over === null) return;
 
     const activeId = active.id as string;
     const overId = over.id as string;
@@ -275,7 +355,7 @@ export default function ProjectBoardPage() {
     if (activeId === overId) return;
 
     const activeIssue = issues.find((issue) => issue._id === activeId);
-    if (!activeIssue) return;
+    if (activeIssue === undefined) return;
 
     const newStatus = overId as "todo" | "in_progress" | "done";
 
@@ -288,88 +368,21 @@ export default function ProjectBoardPage() {
           issue._id === activeId ? { ...issue, status: newStatus } : issue,
         ),
       );
-    } catch (error) {
-      console.error("Failed to update issue status:", error);
+    } catch (err) {
+      console.error("Failed to update issue status:", err);
     }
-  };
-
-  const handleCreateIssue = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    if (!formData.title.trim() || !formData.description.trim()) {
-      setError(t.messages.titleAndDescriptionRequired);
-      return;
-    }
-
-    try {
-      await createIssue({
-        ...formData,
-        projectId: params.id as string,
-      });
-      setFormData({ title: "", description: "", priority: "medium", team: "", status: "todo" });
-      setIsModalOpen(false);
-      loadIssues();
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
-
-  const openDeleteModal = (id: string) => {
-    const issue = issues.find((i) => i._id === id);
-    setIssueToDelete(issue);
-    setIsDeleteModalOpen(true);
   };
 
   const confirmDeleteIssue = async () => {
-    if (!issueToDelete) return;
+    if (issueToDelete === null) return;
 
     try {
       await deleteIssue(issueToDelete._id);
       setIsDeleteModalOpen(false);
       setIssueToDelete(null);
       loadIssues();
-    } catch (error) {
-      console.error("Failed to delete issue:", error);
-    }
-  };
-
-  const handleDeleteIssue = (id: string) => {
-    openDeleteModal(id);
-  };
-
-  const openEditModal = (id: string) => {
-    const issue = issues.find((i) => i._id === id);
-    if (issue) {
-      setIssueToEdit(issue);
-      setEditFormData({
-        title: issue.title,
-        description: issue.description || "",
-        priority: issue.priority || "medium",
-        team: issue.assigneeId?._id || "",
-        status: issue.status || "todo",
-      });
-      setIsEditModalOpen(true);
-    }
-  };
-
-  const handleEditIssue = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!issueToEdit) return;
-
-    try {
-      await updateIssue(issueToEdit._id, {
-        title: editFormData.title,
-        description: editFormData.description,
-        priority: editFormData.priority as "low" | "medium" | "high",
-        assigneeId: editFormData.team || undefined,
-        status: editFormData.status as "todo" | "in_progress" | "done",
-      });
-      setIsEditModalOpen(false);
-      setIssueToEdit(null);
-      loadIssues();
-    } catch (error) {
-      console.error("Failed to update issue:", error);
+    } catch (err) {
+      console.error("Failed to delete issue:", err);
     }
   };
 
@@ -378,7 +391,7 @@ export default function ProjectBoardPage() {
   };
 
   const handleInviteUser = async () => {
-    if (!inviteEmail.trim()) {
+    if (inviteEmail.trim() === "") {
       setError(t.invitations.emailRequired);
       return;
     }
@@ -419,8 +432,8 @@ export default function ProjectBoardPage() {
         const errorData = await response.json();
         setError(errorData.error || t.invitations.failedToInviteUser);
       }
-    } catch (error) {
-      console.error("Failed to invite user:", error);
+    } catch (err) {
+      console.error("Failed to invite user:", err);
       setError(t.invitations.failedToInviteUser);
     }
   };
@@ -458,7 +471,7 @@ export default function ProjectBoardPage() {
                 <UserPlus size={16} className="mr-2" />
                 {t.invitations.inviteMember}
               </Button>
-              <Button onClick={() => setIsModalOpen(true)}>
+              <Button onClick={openCreateModal}>
                 <Plus size={18} className="mr-2" />
                 {t.issues.newIssue}
               </Button>
@@ -506,24 +519,27 @@ export default function ProjectBoardPage() {
                 }
               })();
 
+              const columnIssues = getIssuesByStatus(column.id);
+
               return (
                 <DroppableColumn
                   key={column.id}
                   id={column.id}
                   title={getColumnTitle()}
-                  count={getIssuesByStatus(column.id).length}
+                  count={columnIssues.length}
                   bgColor={columnBg}
                 >
                   <SortableContext
-                    items={getIssuesByStatus(column.id).map((i) => i._id)}
+                    items={columnIssues.map((i) => i._id)}
                     strategy={verticalListSortingStrategy}
                   >
-                    {getIssuesByStatus(column.id).map((issue) => (
+                    {columnIssues.map((issue) => (
                       <DraggableIssue
                         key={issue._id}
                         issue={issue}
                         onDelete={handleDeleteIssue}
                         onEdit={openEditModal}
+                        cardRefs={cardRefs}
                       />
                     ))}
                   </SortableContext>
@@ -542,86 +558,7 @@ export default function ProjectBoardPage() {
         </DndContext>
       </main>
 
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={t.issues.newIssue}
-      >
-        <form onSubmit={handleCreateIssue}>
-          <div className="space-y-4">
-            <Input
-              label={t.issues.issueTitle}
-              value={formData.title}
-              onChange={(e) =>
-                setFormData({ ...formData, title: e.target.value })
-              }
-              placeholder={t.messages.issueTitle}
-              required
-            />
-            <div className="kanban-form-group">
-              <label htmlFor="description" className="kanban-form-label">
-                {t.issues.description}
-              </label>
-              <textarea
-                id="description"
-                className="kanban-textarea"
-                rows={4}
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-                placeholder={t.messages.describeIssue}
-                required
-              />
-            </div>
-            <div className="kanban-form-group">
-              <label htmlFor="team" className="kanban-form-label">
-                {t.issues.team}
-              </label>
-              <select
-                id="team"
-                className="kanban-select"
-                value={formData.team}
-                onChange={(e) =>
-                  setFormData({ ...formData, team: e.target.value })
-                }
-              >
-                <option value="">{t.issues.selectTeam}</option>
-                {projectMembers.map((member) => (
-                  <option key={member._id} value={member._id}>
-                    {member.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="kanban-form-group">
-              <label htmlFor="priority" className="kanban-form-label">
-                {t.issues.priority}
-              </label>
-              <select
-                id="priority"
-                className="kanban-select"
-                value={formData.priority}
-                onChange={(e) =>
-                  setFormData({ ...formData, priority: e.target.value })
-                }
-              >
-                <option value="low">{t.issues.low}</option>
-                <option value="medium">{t.issues.medium}</option>
-                <option value="high">{t.issues.high}</option>
-              </select>
-            </div>
-          </div>
-          {error && <p className="kanban-error">{error}</p>}
-          <div className="kanban-form-actions">
-            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
-              {t.messages.cancel}
-            </Button>
-            <Button type="submit">{t.messages.createIssue}</Button>
-          </div>
-        </form>
-      </Modal>
-
+      {/* Invite Modal */}
       <Modal
         isOpen={isInviteModalOpen}
         onClose={() => {
@@ -664,6 +601,7 @@ export default function ProjectBoardPage() {
         </form>
       </Modal>
 
+      {/* Delete Confirmation */}
       <DeleteConfirm
         isOpen={isDeleteModalOpen}
         onClose={() => {
@@ -677,110 +615,17 @@ export default function ProjectBoardPage() {
         itemDescription={issueToDelete?.description}
       />
 
-      <Modal
-        isOpen={isEditModalOpen}
-        onClose={() => {
-          setIsEditModalOpen(false);
-          setIssueToEdit(null);
-        }}
-        title={t.common.edit + " " + t.issues.title}
-      >
-        <form onSubmit={handleEditIssue}>
-          <div className="space-y-4">
-            <Input
-              label={t.issues.issueTitle}
-              value={editFormData.title}
-              onChange={(e) =>
-                setEditFormData({ ...editFormData, title: e.target.value })
-              }
-              placeholder={t.messages.issueTitle}
-              required
-            />
-            <div className="kanban-form-group">
-              <label htmlFor="edit-description" className="kanban-form-label">
-                {t.issues.description}
-              </label>
-              <textarea
-                id="edit-description"
-                className="kanban-textarea"
-                rows={4}
-                value={editFormData.description}
-                onChange={(e) =>
-                  setEditFormData({ ...editFormData, description: e.target.value })
-                }
-                placeholder={t.messages.describeIssue}
-                required
-              />
-            </div>
-            <div className="kanban-form-group">
-              <label htmlFor="edit-team" className="kanban-form-label">
-                {t.issues.team}
-              </label>
-              <select
-                id="edit-team"
-                className="kanban-select"
-                value={editFormData.team}
-                onChange={(e) =>
-                  setEditFormData({ ...editFormData, team: e.target.value })
-                }
-              >
-                <option value="">{t.issues.selectTeam}</option>
-                {projectMembers.map((member) => (
-                  <option key={member._id} value={member._id}>
-                    {member.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="kanban-form-group">
-              <label htmlFor="edit-priority" className="kanban-form-label">
-                {t.issues.priority}
-              </label>
-              <select
-                id="edit-priority"
-                className="kanban-select"
-                value={editFormData.priority}
-                onChange={(e) =>
-                  setEditFormData({ ...editFormData, priority: e.target.value })
-                }
-              >
-                <option value="low">{t.issues.low}</option>
-                <option value="medium">{t.issues.medium}</option>
-                <option value="high">{t.issues.high}</option>
-              </select>
-            </div>
-            <div className="kanban-form-group">
-              <label htmlFor="edit-status" className="kanban-form-label">
-                {t.issues.status}
-              </label>
-              <select
-                id="edit-status"
-                className="kanban-select"
-                value={editFormData.status}
-                onChange={(e) =>
-                  setEditFormData({ ...editFormData, status: e.target.value })
-                }
-              >
-                <option value="todo">{t.issues.todo}</option>
-                <option value="in_progress">{t.issues.inProgress}</option>
-                <option value="done">{t.issues.done}</option>
-              </select>
-            </div>
-          </div>
-          <div className="kanban-form-actions">
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setIsEditModalOpen(false);
-                setIssueToEdit(null);
-              }}
-            >
-              {t.common.cancel}
-            </Button>
-            <Button type="submit">{t.common.save}</Button>
-          </div>
-        </form>
-      </Modal>
+      {/* Unified Issue Modal - Create / Edit with Checklist */}
+      <IssueModal
+        issue={selectedIssue}
+        isOpen={isIssueModalOpen}
+        mode={issueModalMode}
+        onClose={closeIssueModal}
+        onUpdate={loadIssues}
+        projectId={params.id as string}
+        projectMembers={projectMembers}
+        isDarkMode={isDarkMode}
+      />
     </div>
   );
 }
